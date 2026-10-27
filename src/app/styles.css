@@ -84,7 +84,6 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 8px; border: 1px sol
 .skip-button:disabled { opacity: .35; cursor: default; }
 .skip-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .skip-button svg path:first-child { fill: currentColor; stroke: none; }
-.skip-button span { position: absolute; top: 11px; color: #151617; font: 6px var(--mono); }
 .skip-button .reverse-icon { transform: scaleX(-1); }
 .counts-hint { color: #767879; font: 9px var(--mono); white-space: nowrap; }
 .counts-hint > span:not(.count-dot) { margin: 0 4px; color: #555758; }

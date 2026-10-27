@@ -563,9 +563,9 @@ function TransportControls(props: TransportProps) {
         <label className="custom-speed"><input aria-label="Custom playback speed" type="range" min="0.25" max="2" step="0.05" value={speed} onChange={(event) => onSpeed(Number(event.target.value))} /><span>{speed.toFixed(2)}×</span></label>
       </div>
       <div className="center-controls">
-        <button className="skip-button" aria-label={`Back two bars, ${meter * 2} counts`} onClick={() => onSkip(-meter * 2)} disabled={!bpm}><SkipIcon reverse /><span>{meter * 2}</span></button>
+        <button className="skip-button" aria-label={`Back two bars, ${meter * 2} counts`} onClick={() => onSkip(-meter * 2)} disabled={!bpm}><SkipIcon reverse /></button>
         <button className="play-button" aria-label={isPlaying ? "Pause video" : "Play video"} onClick={onToggle}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</button>
-        <button className="skip-button" aria-label={`Forward two bars, ${meter * 2} counts`} onClick={() => onSkip(meter * 2)} disabled={!bpm}><SkipIcon /><span>{meter * 2}</span></button>
+        <button className="skip-button" aria-label={`Forward two bars, ${meter * 2} counts`} onClick={() => onSkip(meter * 2)} disabled={!bpm}><SkipIcon /></button>
       </div>
       <div className="counts-hint">{bpm ? <><span className="count-dot" />{meter * 2} counts <span>·</span> 2 bars</> : "DETECT BEAT TO COUNT"}</div>
     </div>
