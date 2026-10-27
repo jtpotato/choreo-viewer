@@ -12,8 +12,10 @@ const SPEED_PRESETS = [0.25, 0.5, 0.75, 1] as const;
 
 export function ChoreoViewer() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const selfieVideoRef = useRef<HTMLVideoElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
   const detectorRef = useRef<BeatDetector | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
   const libraryRef = useRef<SavedVideo[]>([]);
   const sessionFilesRef = useRef(new Map<string, File>());
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function ChoreoViewer() {
   const [bars, setBars] = useState(4);
   const [savedVideos, setSavedVideos] = useState<SavedVideo[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [selfieEnabled, setSelfieEnabled] = useState(false);
 
   const beatDuration = useMemo(() => config.bpm ? 60 / config.bpm : 0, [config.bpm]);
   const barDuration = beatDuration * config.meter;
@@ -49,6 +52,22 @@ export function ChoreoViewer() {
       libraryRef.current = merged;
       setSavedVideos(merged);
     }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const preview = selfieVideoRef.current;
+    const stream = cameraStreamRef.current;
+    if (!selfieEnabled || !preview || !stream) return;
+    preview.srcObject = stream;
+    void preview.play().catch(() => setError("Could not start the camera preview."));
+    return () => {
+      preview.srcObject = null;
+    };
+  }, [selfieEnabled]);
+
+  useEffect(() => () => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -183,6 +202,29 @@ export function ChoreoViewer() {
       pickerRef.current?.click();
     }
   }, [addVideoFiles]);
+
+  const toggleSelfie = useCallback(async () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+      setSelfieEnabled(false);
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Camera access is unavailable in this browser.");
+      return;
+    }
+    try {
+      cameraStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+      setError("");
+      setSelfieEnabled(true);
+    } catch {
+      setError("Camera access was denied or unavailable.");
+    }
+  }, []);
 
   const openSavedVideo = useCallback(async (entry: SavedVideo) => {
     const sessionFile = sessionFilesRef.current.get(entry.id);
@@ -379,9 +421,10 @@ export function ChoreoViewer() {
         <a className="wordmark" href="#top">CHOREO</a>
         <div className="topbar-title">{identity?.name ?? ""}</div>
         <div className="header-actions">
-          {videoUrl && <button className={`text-button mirror-button ${config.mirrored ? "active" : ""}`} aria-pressed={config.mirrored} onClick={() => updateConfig({ mirrored: !config.mirrored })}><MirrorIcon /> Mirror</button>}
-          <button className="text-button library-trigger" aria-expanded={libraryOpen} onClick={() => setLibraryOpen((open) => !open)}><LibraryIcon /> Songs <span className="menu-chevron">▾</span></button>
-          <button className="text-button" onClick={() => void openPicker()}><UploadIcon /> Open video</button>
+          <button className={`text-button selfie-button ${selfieEnabled ? "active" : ""}`} aria-label={selfieEnabled ? "Close selfie camera" : "Open selfie camera"} aria-pressed={selfieEnabled} onClick={() => void toggleSelfie()}><SelfieIcon /><span>Selfie</span></button>
+          {videoUrl && <button className={`text-button mirror-button ${config.mirrored ? "active" : ""}`} aria-label="Mirror choreography video" title="Mirror" aria-pressed={config.mirrored} onClick={() => updateConfig({ mirrored: !config.mirrored })}><MirrorIcon /><span>Mirror</span></button>}
+          <button className="text-button library-trigger" aria-label="Songs" aria-expanded={libraryOpen} onClick={() => setLibraryOpen((open) => !open)}><LibraryIcon /><span>Songs</span> <span className="menu-chevron">▾</span></button>
+          <button className="text-button open-video-button" aria-label="Open video" onClick={() => void openPicker()}><UploadIcon /><span>Open video</span></button>
           {libraryOpen && <div className="video-library-menu" role="menu" aria-label="Song library">
             <button className="library-add" role="menuitem" onClick={() => void openPicker()}><UploadIcon /> Add videos</button>
             <div className="library-divider" />
@@ -396,19 +439,25 @@ export function ChoreoViewer() {
 
       <div className="workspace" id="top">
         <section className="practice-column" aria-label="Video practice player">
-          <div className={`video-frame ${videoUrl ? "has-video" : ""}`}>
-            {videoUrl ? (
-              <video
-                ref={videoRef}
-                className={config.mirrored ? "is-mirrored" : ""}
-                src={videoUrl}
-                playsInline
-                preload="metadata"
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-              />
-            ) : <WelcomeCard onChoose={() => void openPicker()} />}
+          <div className={`video-stage ${selfieEnabled ? "with-selfie" : ""}`}>
+            <div className={`video-frame ${videoUrl ? "has-video" : ""}`}>
+              {videoUrl ? (
+                <video
+                  ref={videoRef}
+                  className={config.mirrored ? "is-mirrored" : ""}
+                  src={videoUrl}
+                  playsInline
+                  preload="metadata"
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                />
+              ) : <WelcomeCard onChoose={() => void openPicker()} />}
+            </div>
+            {selfieEnabled && <div className="selfie-frame">
+              <video ref={selfieVideoRef} className="selfie-video" autoPlay muted playsInline aria-label="Selfie camera preview" />
+              <span className="selfie-caption">SELFIE</span>
+            </div>}
           </div>
 
           {videoUrl && <LoopEditor
@@ -634,6 +683,7 @@ function closestValue(times: number[], target: number): number | null {
 }
 
 function UploadIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" /></svg>; }
+function SelfieIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h3l1.5-2h7l1.5 2h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>; }
 function PlayIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z" fill="currentColor" stroke="none" /></svg>; }
 function PauseIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>; }
 function PulseIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg>; }
