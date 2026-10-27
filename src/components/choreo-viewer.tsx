@@ -379,8 +379,9 @@ export function ChoreoViewer() {
 
   const changeBeatOffset = useCallback((delta: number) => {
     const nextOffset = Math.max(0, config.beatOffset + delta);
+    const appliedDelta = nextOffset - config.beatOffset;
     const beatTimes = config.beatTimes.length
-      ? shiftBeatTimes(config.beatTimes, delta)
+      ? shiftBeatTimes(config.beatTimes, appliedDelta)
       : config.bpm ? buildUniformBeatTimes(duration, config.bpm, nextOffset) : [];
     updateConfig({
       beatOffset: nextOffset,
@@ -464,6 +465,7 @@ export function ChoreoViewer() {
             config={config}
             currentTime={currentTime}
             duration={duration}
+            bpm={config.bpm}
             bars={bars}
             barDuration={barDuration}
             enabled
@@ -505,7 +507,7 @@ export function ChoreoViewer() {
             {analysisMessage && <p className="analysis-status" role="status">{analysisMessage}</p>}
             {config.bpm && <div className="offset-row">
               <span>OFFSET</span>
-              <span className="offset-value">{formatTime(config.beatOffset)}</span>
+              <span className="offset-value">{formatPreciseTime(config.beatOffset)}</span>
               <button aria-label="Move beat offset earlier" onClick={() => changeBeatOffset(-beatDuration / 4)}>−</button>
               <button aria-label="Move beat offset later" onClick={() => changeBeatOffset(beatDuration / 4)}>+</button>
             </div>}
@@ -565,6 +567,7 @@ interface LoopEditorProps {
   config: PracticeConfig;
   currentTime: number;
   duration: number;
+  bpm: number | null;
   bars: number;
   barDuration: number;
   enabled: boolean;
@@ -575,7 +578,7 @@ interface LoopEditorProps {
   onSeek: (time: number) => void;
 }
 
-function LoopEditor({ config, currentTime, duration, bars, barDuration, enabled, onBars, onMarkStart, onMarkEnd, onClear, onSeek }: LoopEditorProps) {
+function LoopEditor({ config, currentTime, duration, bpm, bars, barDuration, enabled, onBars, onMarkStart, onMarkEnd, onClear, onSeek }: LoopEditorProps) {
   const loopStart = config.loopStart;
   const loopEnd = config.loopEnd;
   const active = loopStart !== null && loopEnd !== null;
@@ -588,7 +591,7 @@ function LoopEditor({ config, currentTime, duration, bars, barDuration, enabled,
       </div>
       <input className="timeline-seek" aria-label="Seek and snap to nearest bar" type="range" min="0" max={duration || 1} step="0.02" value={Math.min(currentTime, duration || 1)} onChange={(event) => onSeek(snapToBar(Number(event.target.value), config.bpm, config.beatOffset, config.barTimes, config.meter))} disabled={!enabled || duration === 0} />
     </div>
-    <div className="timeline-timecodes"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+    <div className="timeline-timecodes"><span className="timeline-current"><time>{formatTime(currentTime)}</time><span>{formatMeasureBeat(currentTime, config, bpm)}</span></span><span>{formatTime(duration)}</span></div>
     <div className="loop-controls">
     <div className="bar-select-row">
       <span>LOOP</span>
@@ -609,6 +612,36 @@ function snapToBar(time: number, bpm: number | null, offset: number, barTimes: n
 
 function getBarTimes(beatTimes: number[], meter: 3 | 4): number[] {
   return beatTimes.filter((_, index) => index % meter === 0);
+}
+
+function formatMeasureBeat(time: number, config: PracticeConfig, bpm: number | null): string {
+  const beatDuration = bpm ? 60 / bpm : 0;
+  if (!beatDuration) return "—";
+
+  let beatIndex: number;
+  if (config.beatTimes.length > 0) {
+    let low = 0;
+    let high = config.beatTimes.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if ((config.beatTimes[middle] ?? Infinity) <= time) low = middle + 1;
+      else high = middle;
+    }
+    beatIndex = Math.max(0, low - 1);
+  } else {
+    beatIndex = Math.max(0, Math.floor((time - config.beatOffset) / beatDuration));
+  }
+
+  const measure = Math.floor(beatIndex / config.meter) + 1;
+  const beat = (beatIndex % config.meter) + 1;
+  return `M${measure} · B${beat}`;
+}
+
+function formatPreciseTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00.000";
+  const minutes = Math.floor(seconds / 60);
+  const remainder = (seconds % 60).toFixed(3).padStart(6, "0");
+  return `${minutes}:${remainder}`;
 }
 
 function formatBarLabel(time: number, config: PracticeConfig): string {

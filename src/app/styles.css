@@ -56,6 +56,8 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 .welcome-content { display: grid; place-items: center; }
 .primary-button { display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 14px; color: #e3e3df; background: #202122; border: 1px solid #383a3b; border-radius: 4px; font-size: 11px; cursor: pointer; }
 .timeline-timecodes { display: flex; justify-content: space-between; margin: 0 7px; color: #858787; font: 9px var(--mono); }
+.timeline-current { display: inline-flex; align-items: center; gap: 10px; }
+.timeline-current > span { color: #b5b6b2; }
 
 .transport { padding: 3px 0 0; }
 input[type="range"] { appearance: none; -webkit-appearance: none; width: 100%; height: 16px; margin: 0; background: transparent; cursor: pointer; }
