@@ -74,19 +74,28 @@ export function ChoreoViewer() {
     const video = videoRef.current;
     if (!video) return;
     const update = () => {
-      setCurrentTime(video.currentTime);
-      if (config.loopStart !== null && config.loopEnd !== null && video.currentTime >= config.loopEnd) {
+      let time = video.currentTime;
+      if (config.loopStart !== null && config.loopEnd !== null && time >= config.loopEnd) {
         video.currentTime = config.loopStart;
+        time = config.loopStart;
       }
+      setCurrentTime(time);
     };
     const metadata = () => setDuration(video.duration || 0);
+    let frameId: number | null = null;
+    const updateFrame = () => {
+      update();
+      frameId = window.requestAnimationFrame(updateFrame);
+    };
     video.addEventListener("timeupdate", update);
     video.addEventListener("loadedmetadata", metadata);
+    if (isPlaying) frameId = window.requestAnimationFrame(updateFrame);
     return () => {
       video.removeEventListener("timeupdate", update);
       video.removeEventListener("loadedmetadata", metadata);
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
     };
-  }, [videoUrl, config.loopStart, config.loopEnd]);
+  }, [videoUrl, config.loopStart, config.loopEnd, isPlaying]);
 
   useEffect(() => () => {
     detectorRef.current?.stop();
