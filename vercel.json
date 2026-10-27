@@ -1,0 +1,19 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/choreo-viewer/",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/choreo-viewer",
+      "destination": "/"
+    },
+    {
+      "source": "/choreo-viewer/:path*",
+      "destination": "/:path*"
+    }
+  ]
+}

@@ -17,7 +17,7 @@ Open `http://localhost:3000/choreo-viewer/`.
 bun run build
 ```
 
-Next.js writes the static site to `out/`. Deploy the contents of that directory at the `/choreo-viewer/` path. The `basePath` in `next.config.ts` controls both the route and generated asset URLs.
+Next.js writes the static site to `out/`. On Vercel, deploy the project with the default Next.js build settings; `vercel.json` redirects the project root to `/choreo-viewer/` and rewrites that prefix to the exported files. The `basePath` in `next.config.ts` controls the route and generated asset URLs. On other static hosts, publish the contents of `out/` under `/choreo-viewer/` or configure equivalent rewrites.
 
 ## Local media and settings
 
