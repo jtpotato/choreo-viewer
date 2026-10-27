@@ -1,4 +1,5 @@
 {
+  "outputDirectory": "out",
   "redirects": [
     {
       "source": "/",
