@@ -13,10 +13,24 @@ export function loadConfig(key: string, legacyKey?: string): PracticeConfig {
       ...parsed,
       beatTimes,
       barTimes,
+      savedLoops: savedLoops(parsed.savedLoops),
     };
   } catch {
     return DEFAULT_CONFIG;
   }
+}
+
+function savedLoops(value: unknown): PracticeConfig["savedLoops"] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((loop): loop is PracticeConfig["savedLoops"][number] => (
+    !!loop
+    && typeof loop === "object"
+    && typeof (loop as { id?: unknown }).id === "string"
+    && Number.isInteger((loop as { startBeat?: unknown }).startBeat)
+    && Number.isInteger((loop as { endBeat?: unknown }).endBeat)
+    && (loop as { startBeat: number }).startBeat >= 0
+    && (loop as { endBeat: number }).endBeat > (loop as { startBeat: number }).startBeat
+  ));
 }
 
 function numericTimes(value: unknown): number[] {
@@ -43,5 +57,6 @@ function isPracticeConfig(value: unknown): value is PracticeConfig {
     && (config.barTimes === undefined || Array.isArray(config.barTimes))
     && (config.mirrored === undefined || typeof config.mirrored === "boolean")
     && (config.loopStart === null || typeof config.loopStart === "number")
-    && (config.loopEnd === null || typeof config.loopEnd === "number");
+    && (config.loopEnd === null || typeof config.loopEnd === "number")
+    && (config.savedLoops === undefined || Array.isArray(config.savedLoops));
 }

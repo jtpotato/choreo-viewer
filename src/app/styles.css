@@ -151,6 +151,19 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 8px; border: 1px sol
 .loop-footer > span { display: flex; align-items: center; gap: 5px; }
 .loop-footer button { padding: 2px 0 2px 8px; color: #989a96; background: none; border: 0; font-size: 8px; cursor: pointer; }
 .loop-status-dot { width: 5px; height: 5px; background: #bfc1bb; border-radius: 50%; }
+.saved-sections { margin-top: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid #292b2c; border-radius: 4px; }
+.saved-sections-heading { display: flex; align-items: center; justify-content: space-between; color: #777a7b; font: 8px var(--mono); }
+.saved-sections-heading button { padding: 4px 7px; color: #c6c7c2; background: #252627; border: 1px solid #383a3b; border-radius: 3px; font: 9px var(--sans); cursor: pointer; }
+.saved-sections-heading button:disabled { opacity: .45; cursor: default; }
+.saved-sections ol { display: grid; gap: 4px; margin: 7px 0 0; padding: 0; list-style: none; }
+.saved-sections li { display: flex; align-items: center; gap: 4px; }
+.saved-section-load { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; color: #d2d3cf; background: #202122; border: 1px solid #303233; border-radius: 3px; text-align: left; cursor: pointer; }
+.saved-section-load:disabled { opacity: .45; cursor: default; }
+.saved-section-load strong { font-size: 9px; font-weight: 500; }
+.saved-section-load span { overflow: hidden; color: #8f918f; font: 8px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.saved-section-delete { width: 28px; height: 28px; color: #999b99; background: transparent; border: 0; border-radius: 3px; font-size: 16px; cursor: pointer; }
+.saved-section-delete:hover { background: #292b2c; }
+.saved-sections > p { margin: 8px 0 1px; color: #777a7b; font-size: 9px; }
 .inline-error { margin: 8px 0 0; padding: 8px 10px; color: #e2b0a8; background: #281d1b; border: 1px solid #47302d; border-radius: 3px; font-size: 10px; }
 
 @media (min-width: 1500px) { .video-frame { height: min(66vw, 75svh); } }

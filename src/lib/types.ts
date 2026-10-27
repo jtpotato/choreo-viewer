@@ -1,5 +1,11 @@
 export type Meter = 3 | 4;
 
+export interface SavedLoop {
+  id: string;
+  startBeat: number;
+  endBeat: number;
+}
+
 export interface PracticeConfig {
   meter: Meter;
   bpm: number | null;
@@ -9,6 +15,7 @@ export interface PracticeConfig {
   mirrored: boolean;
   loopStart: number | null;
   loopEnd: number | null;
+  savedLoops: SavedLoop[];
 }
 
 export interface VideoIdentity {
@@ -27,4 +34,5 @@ export const DEFAULT_CONFIG: PracticeConfig = {
   mirrored: false,
   loopStart: null,
   loopEnd: null,
+  savedLoops: [],
 };

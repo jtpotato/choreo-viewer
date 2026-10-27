@@ -6,7 +6,7 @@ import { loadConfig, saveConfig } from "@/lib/config-store";
 import { formatTime } from "@/lib/format-time";
 import { identifyVideo } from "@/lib/video-identity";
 import { listSavedVideos, removeSavedVideo, saveVideo, type SavedVideo } from "@/lib/video-library";
-import { DEFAULT_CONFIG, type PracticeConfig, type VideoIdentity } from "@/lib/types";
+import { DEFAULT_CONFIG, type PracticeConfig, type SavedLoop, type VideoIdentity } from "@/lib/types";
 
 const SPEED_PRESETS = [0.25, 0.5, 0.75, 1] as const;
 
@@ -382,9 +382,41 @@ export function ChoreoViewer() {
     }
   }, [barDuration, config.barTimes, config.loopStart, duration, updateConfig]);
 
+  const seekTo = useCallback((time: number) => {
+    if (videoRef.current) videoRef.current.currentTime = time;
+    setCurrentTime(time);
+  }, []);
+
   const changeMeter = useCallback((meter: 3 | 4) => {
     updateConfig({ meter, barTimes: getBarTimes(config.beatTimes, meter) });
   }, [config.beatTimes, updateConfig]);
+
+  const saveSection = useCallback(() => {
+    if (config.loopStart === null || config.loopEnd === null || !config.bpm) return;
+    const startBeat = getBeatIndexAtTime(config.loopStart, config.beatOffset, config.bpm);
+    const endBeat = getBeatIndexAtTime(config.loopEnd, config.beatOffset, config.bpm);
+    if (endBeat <= startBeat) return;
+    const id = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`;
+    const savedLoops = [...config.savedLoops, { id, startBeat, endBeat }].sort(compareSavedLoops);
+    updateConfig({ savedLoops });
+  }, [config.beatOffset, config.bpm, config.loopEnd, config.loopStart, config.savedLoops, updateConfig]);
+
+  const loadSection = useCallback((section: SavedLoop) => {
+    if (!config.bpm) return;
+    const start = beatIndexToTime(section.startBeat, config.beatTimes, config.beatOffset, config.bpm);
+    const end = beatIndexToTime(section.endBeat, config.beatTimes, config.beatOffset, config.bpm);
+    const loopStart = Math.max(0, duration > 0 ? Math.min(duration, start) : start);
+    const loopEnd = Math.max(loopStart + 0.1, duration > 0 ? Math.min(duration, end) : end);
+    updateConfig({ loopStart, loopEnd });
+    setBars(Math.max(1, Math.round((section.endBeat - section.startBeat) / config.meter)));
+    seekTo(loopStart);
+  }, [config.beatOffset, config.beatTimes, config.bpm, config.meter, duration, seekTo, updateConfig]);
+
+  const deleteSection = useCallback((id: string) => {
+    updateConfig({ savedLoops: config.savedLoops.filter((section) => section.id !== id) });
+  }, [config.savedLoops, updateConfig]);
 
   const changeBeatOffset = useCallback((delta: number) => {
     const nextOffset = Math.max(0, config.beatOffset + delta);
@@ -417,11 +449,6 @@ export function ChoreoViewer() {
       updateConfig({ bpm, beatTimes, barTimes: getBarTimes(beatTimes, config.meter) });
     }
   }, [bpmInput, config.beatOffset, config.beatTimes.length, config.bpm, config.meter, duration, updateConfig]);
-
-  const seekTo = useCallback((time: number) => {
-    if (videoRef.current) videoRef.current.currentTime = time;
-    setCurrentTime(time);
-  }, []);
 
   const clearLoop = useCallback(() => updateConfig({ loopStart: null, loopEnd: null }), [updateConfig]);
 
@@ -483,6 +510,9 @@ export function ChoreoViewer() {
             onMarkEnd={markLoopEnd}
             onClear={clearLoop}
             onSeek={seekTo}
+            onSaveSection={saveSection}
+            onLoadSection={loadSection}
+            onDeleteSection={deleteSection}
           />}
 
           {error && <p className="inline-error" role="alert">{error}</p>}
@@ -585,12 +615,16 @@ interface LoopEditorProps {
   onMarkEnd: () => void;
   onClear: () => void;
   onSeek: (time: number) => void;
+  onSaveSection: () => void;
+  onLoadSection: (section: SavedLoop) => void;
+  onDeleteSection: (id: string) => void;
 }
 
-function LoopEditor({ config, currentTime, duration, bpm, bars, barDuration, enabled, onBars, onMarkStart, onMarkEnd, onClear, onSeek }: LoopEditorProps) {
+function LoopEditor({ config, currentTime, duration, bpm, bars, barDuration, enabled, onBars, onMarkStart, onMarkEnd, onClear, onSeek, onSaveSection, onLoadSection, onDeleteSection }: LoopEditorProps) {
   const loopStart = config.loopStart;
   const loopEnd = config.loopEnd;
   const active = loopStart !== null && loopEnd !== null;
+  const savedLoops = [...config.savedLoops].sort(compareSavedLoops);
   return <div className="loop-editor">
     <div className={`loop-track ${active ? "loop-active" : ""}`}>
       <div className="timeline-rail">
@@ -609,6 +643,18 @@ function LoopEditor({ config, currentTime, duration, bpm, bars, barDuration, ena
     <div className="loop-actions"><button className={`mark-button ${active ? "marked" : ""}`} disabled={!enabled} onClick={onMarkStart}><span className="mark-letter">A</span><strong>{active ? formatBarLabel(loopStart, config) : "Set start"}</strong></button><button className={`mark-button ${active ? "marked" : ""}`} disabled={!enabled} onClick={onMarkEnd}><span className="mark-letter mark-b">B</span><strong>{active ? formatBarLabel(loopEnd, config) : "Set end"}</strong></button></div>
     <div className="loop-footer">{active ? <><span><span className="loop-status-dot" />{formatBarLength(loopStart, loopEnd!, config, barDuration)}</span><button onClick={onClear}>Clear</button></> : <span />}</div>
     </div>
+    <div className="saved-sections">
+      <div className="saved-sections-heading"><span>SECTIONS</span><button disabled={!active || !bpm} onClick={onSaveSection}>Save current loop</button></div>
+      {savedLoops.length > 0 ? <ol>
+        {savedLoops.map((section, index) => <li key={section.id}>
+          <button className="saved-section-load" disabled={!bpm} onClick={() => onLoadSection(section)} aria-label={`Load Section ${index + 1}`}>
+            <strong>Section {index + 1}</strong>
+            <span>{formatBeatPosition(section.startBeat, config.meter)} – {formatBeatPosition(section.endBeat, config.meter)}</span>
+          </button>
+          <button className="saved-section-delete" aria-label={`Delete Section ${index + 1}`} onClick={() => onDeleteSection(section.id)}>×</button>
+        </li>)}
+      </ol> : <p>No saved sections</p>}
+    </div>
   </div>;
 }
 
@@ -621,6 +667,24 @@ function snapToBar(time: number, bpm: number | null, offset: number, barTimes: n
 
 function getBarTimes(beatTimes: number[], meter: 3 | 4): number[] {
   return beatTimes.filter((_, index) => index % meter === 0);
+}
+
+function compareSavedLoops(left: SavedLoop, right: SavedLoop): number {
+  return left.startBeat - right.startBeat || left.endBeat - right.endBeat || left.id.localeCompare(right.id);
+}
+
+function formatBeatPosition(beatIndex: number, meter: 3 | 4): string {
+  const measure = Math.floor(beatIndex / meter) + 1;
+  const beat = (beatIndex % meter) + 1;
+  return `M${measure} B${beat}`;
+}
+
+function getBeatIndexAtTime(time: number, offset: number, bpm: number): number {
+  return Math.max(0, Math.round((time - offset) / (60 / bpm)));
+}
+
+function beatIndexToTime(beatIndex: number, beatTimes: number[], offset: number, bpm: number): number {
+  return beatTimes[beatIndex] ?? Math.max(0, offset + beatIndex * (60 / bpm));
 }
 
 function formatMeasureBeat(time: number, config: PracticeConfig, bpm: number | null): string {
@@ -731,4 +795,4 @@ function PauseIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path 
 function PulseIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg>; }
 function MirrorIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M4 7h5v10H4zM15 7h5v10h-5z" /></svg>; }
 function LibraryIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" /></svg>; }
-function SkipIcon({ reverse = false }: { reverse?: boolean }) { return <svg className={reverse ? "reverse-icon" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14l11-7zM19 5v14"/><path d="M11 3h2" className="skip-eight" /></svg>; }
+function SkipIcon({ reverse = false }: { reverse?: boolean }) { return <svg className={reverse ? "reverse-icon" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14l11-7zM19 5v14"/></svg>; }
