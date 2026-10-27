@@ -544,10 +544,9 @@ function LoopEditor({ config, currentTime, duration, bars, barDuration, enabled,
     <div className="bar-select-row">
       <span>LOOP</span>
       <div className="bar-stepper"><button disabled={!enabled || bars <= 1} onClick={() => onBars(Math.max(1, bars - 1))}>−</button><strong>{bars} <small>{bars === 1 ? "bar" : "bars"}</small></strong><button disabled={!enabled} onClick={() => onBars(Math.min(16, bars + 1))}>+</button></div>
-      {barDuration > 0 && <span className="loop-length">{formatTime(bars * barDuration)}</span>}
     </div>
-    <div className="loop-actions"><button className={`mark-button ${active ? "marked" : ""}`} disabled={!enabled} onClick={onMarkStart}><span className="mark-letter">A</span><strong>{active ? formatTime(loopStart) : "Set start"}</strong></button><button className={`mark-button ${active ? "marked" : ""}`} disabled={!enabled} onClick={onMarkEnd}><span className="mark-letter mark-b">B</span><strong>{active ? formatTime(loopEnd) : "Set end"}</strong></button></div>
-    <div className="loop-footer">{active ? <><span><span className="loop-status-dot" />{formatTime(loopEnd! - loopStart!)}</span><button onClick={onClear}>Clear</button></> : <span />}</div>
+    <div className="loop-actions"><button className={`mark-button ${active ? "marked" : ""}`} disabled={!enabled} onClick={onMarkStart}><span className="mark-letter">A</span><strong>{active ? formatBarLabel(loopStart, config) : "Set start"}</strong></button><button className={`mark-button ${active ? "marked" : ""}`} disabled={!enabled} onClick={onMarkEnd}><span className="mark-letter mark-b">B</span><strong>{active ? formatBarLabel(loopEnd, config) : "Set end"}</strong></button></div>
+    <div className="loop-footer">{active ? <><span><span className="loop-status-dot" />{formatBarLength(loopStart, loopEnd!, config, barDuration)}</span><button onClick={onClear}>Clear</button></> : <span />}</div>
     </div>
   </div>;
 }
@@ -561,6 +560,25 @@ function snapToBar(time: number, bpm: number | null, offset: number, barTimes: n
 
 function getBarTimes(beatTimes: number[], meter: 3 | 4): number[] {
   return beatTimes.filter((_, index) => index % meter === 0);
+}
+
+function formatBarLabel(time: number, config: PracticeConfig): string {
+  if (config.barTimes.length > 0) {
+    const index = nearestIndex(config.barTimes, time);
+    return `Bar ${index + 1}`;
+  }
+  const barDuration = config.bpm ? 60 / config.bpm * config.meter : 0;
+  const index = barDuration > 0 ? Math.max(0, Math.round((time - config.beatOffset) / barDuration)) : 0;
+  return `Bar ${index + 1}`;
+}
+
+function formatBarLength(start: number, end: number, config: PracticeConfig, barDuration: number): string {
+  const startIndex = nearestIndex(config.barTimes, start);
+  const endIndex = nearestIndex(config.barTimes, end);
+  const numberOfBars = startIndex >= 0 && endIndex >= startIndex
+    ? endIndex - startIndex
+    : barDuration > 0 ? Math.max(1, Math.round((end - start) / barDuration)) : 1;
+  return `${numberOfBars} ${numberOfBars === 1 ? "bar" : "bars"}`;
 }
 
 function buildUniformBeatTimes(duration: number, bpm: number, offset: number): number[] {
